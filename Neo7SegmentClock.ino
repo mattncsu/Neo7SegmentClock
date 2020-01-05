@@ -8,15 +8,21 @@
 //  Based on 7Segment code by Marc Miller, (https://github.com/marmilicious/FastLED_examples/)
 //  and ESP32 Simpletime example
 //
+//
 //***************************************************************
 
 #include <FastLED.h>
-#include "secrets.h"
+#include "secrets.h" //defines ssid, password, and ntpServer as const char*
 #include <WiFi.h>
 #include <time.h>
+#include <ESPmDNS.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
 
+CRGBPalette16 currentPalette;
+TBlendType    currentBlending;
 
-const long  gmtOffset_sec = -18000;
+const long  gmtOffset_sec = -18000; //Eastern Time
 const int   daylightOffset_sec = 3600;
 
 #define DATA_PIN    18
@@ -33,20 +39,52 @@ CHSV segON100(HUE_AQUA,255,255);  // color of 100s digit segments
 CHSV segON10(HUE_PURPLE,255,255);  // color of 10s digit segments
 CHSV segON(HUE_RED,255,255);  // color of 1s digit segments
 CHSV colON(HUE_YELLOW,255,255); //color of colon
+CHSV segBlack(0,0,0); //black
 //CRGB colON = CRGB::Orange;
 
 /* CRGB leds[NUM_LEDS];  <--not using this.  Using CRGBArray instead. */
 CRGBArray<NUM_LEDS> leds;
 
-// Name segments (based on layout in link above) and define pixel ranges.
-CRGBSet segA(  leds(pps*0,  pps-1+(pps*0)  ));
-CRGBSet segB(  leds(pps*1,  pps-1+(pps*1)  ));
-CRGBSet segC(  leds(pps*2,  pps-1+(pps*2)  ));
-CRGBSet segD(  leds(pps*3,  pps-1+(pps*3)  ));
-CRGBSet segE(  leds(pps*4,  pps-1+(pps*4)  ));
-CRGBSet segF(  leds(pps*5,  pps-1+(pps*5)  ));
-CRGBSet segG(  leds(pps*6,  pps-1+(pps*6)  ));
-CRGBSet col(leds(84,85));
+// Name segments and define pixel ranges.
+//     1....2....3....4
+//    AAA
+//   F   B
+//    GGG   
+//   E   C  
+//    DDD
+CRGBSet seg1A(  leds(pps*0,  pps-1+(pps*0)  ));
+CRGBSet seg1B(  leds(pps*1,  pps-1+(pps*1)  ));
+CRGBSet seg1C(  leds(pps*2,  pps-1+(pps*2)  ));
+CRGBSet seg1D(  leds(pps*3,  pps-1+(pps*3)  ));
+CRGBSet seg1E(  leds(pps*4,  pps-1+(pps*4)  ));
+CRGBSet seg1F(  leds(pps*5,  pps-1+(pps*5)  ));
+CRGBSet seg1G(  leds(pps*6,  pps-1+(pps*6)  ));
+
+CRGBSet seg2A(  leds(pps*0+(1*7*pps),  pps-1+(pps*0)+(1*7*pps)  ));
+CRGBSet seg2B(  leds(pps*1+(1*7*pps),  pps-1+(pps*1)+(1*7*pps)  ));
+CRGBSet seg2C(  leds(pps*2+(1*7*pps),  pps-1+(pps*2)+(1*7*pps)  ));
+CRGBSet seg2D(  leds(pps*3+(1*7*pps),  pps-1+(pps*3)+(1*7*pps)  ));
+CRGBSet seg2E(  leds(pps*4+(1*7*pps),  pps-1+(pps*4)+(1*7*pps)  ));
+CRGBSet seg2F(  leds(pps*5+(1*7*pps),  pps-1+(pps*5)+(1*7*pps)  ));
+CRGBSet seg2G(  leds(pps*6+(1*7*pps),  pps-1+(pps*6)+(1*7*pps)  ));
+
+CRGBSet seg3A(  leds(pps*0+(2*7*pps),  pps-1+(pps*0)+(2*7*pps)  ));
+CRGBSet seg3B(  leds(pps*1+(2*7*pps),  pps-1+(pps*1)+(2*7*pps)  ));
+CRGBSet seg3C(  leds(pps*2+(2*7*pps),  pps-1+(pps*2)+(2*7*pps)  ));
+CRGBSet seg3D(  leds(pps*3+(2*7*pps),  pps-1+(pps*3)+(2*7*pps)  ));
+CRGBSet seg3E(  leds(pps*4+(2*7*pps),  pps-1+(pps*4)+(2*7*pps)  ));
+CRGBSet seg3F(  leds(pps*5+(2*7*pps),  pps-1+(pps*5)+(2*7*pps)  ));
+CRGBSet seg3G(  leds(pps*6+(2*7*pps),  pps-1+(pps*6)+(2*7*pps)  ));
+
+CRGBSet seg4A(  leds(pps*0+(3*7*pps),  pps-1+(pps*0)+(3*7*pps)  ));
+CRGBSet seg4B(  leds(pps*1+(3*7*pps),  pps-1+(pps*1)+(3*7*pps)  ));
+CRGBSet seg4C(  leds(pps*2+(3*7*pps),  pps-1+(pps*2)+(3*7*pps)  ));
+CRGBSet seg4D(  leds(pps*3+(3*7*pps),  pps-1+(pps*3)+(3*7*pps)  ));
+CRGBSet seg4E(  leds(pps*4+(3*7*pps),  pps-1+(pps*4)+(3*7*pps)  ));
+CRGBSet seg4F(  leds(pps*5+(3*7*pps),  pps-1+(pps*5)+(3*7*pps)  ));
+CRGBSet seg4G(  leds(pps*6+(3*7*pps),  pps-1+(pps*6)+(3*7*pps)  ));
+
+CRGBSet col(leds(84,85)); //colon
 
 int count = 8888;  // keeps track of what number to display
 
@@ -65,17 +103,58 @@ void printLocalTime()
 }
 
 void setup() {
-  Serial.begin(115200);  // Allows serial monitor output (check baud rate)
+  Serial.begin(115200);  // Allows serial monitor output
 
   //connect to WiFi
   Serial.printf("Connecting to %s ", ssid);
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
       delay(500);
       Serial.print(".");
   }
   Serial.println(" CONNECTED");
-  
+
+ // Port defaults to 3232
+  // ArduinoOTA.setPort(3232);
+
+  // Hostname defaults to esp3232-[MAC]
+   ArduinoOTA.setHostname("ESPixelClock1");
+
+  // No authentication by default
+   ArduinoOTA.setPassword("admin123");
+
+  // Password can be set with it's md5 value as well
+  // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
+  // ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
+
+   ArduinoOTA
+    .onStart([]() {
+      String type;
+      if (ArduinoOTA.getCommand() == U_FLASH)
+        type = "sketch";
+      else // U_SPIFFS
+        type = "filesystem";
+
+      // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+      Serial.println("Start updating " + type);
+    })
+    .onEnd([]() {
+      Serial.println("\nEnd");
+    })
+    .onProgress([](unsigned int progress, unsigned int total) {
+      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    })
+    .onError([](ota_error_t error) {
+      Serial.printf("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+      else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    });
+
+  ArduinoOTA.begin();
   
   //init and get the time
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
@@ -83,8 +162,13 @@ void setup() {
 
   
   FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
-
   FastLED.setBrightness(BRIGHTNESS);
+  currentPalette = RainbowColors_p;
+//  currentPalette = CloudColors_p;
+//  currentPalette = PartyColors_p;
+//  currentPalette = ForestColors_p;
+//  currentPalette = OceanColors_p;
+  currentBlending = LINEARBLEND;
   FastLED.clear();  // Initially clear all pixels
 }
 
@@ -93,28 +177,29 @@ bool colon;
 //---------------------------------------------------------------
 void loop()
 {
-  EVERY_N_MILLISECONDS(200){
-    setSegments(count);  // Determine which segments are ON or OFF
-    printLocalTime();
+  ArduinoOTA.handle();
+
+  static uint8_t startIndex = 0;
+  EVERY_N_MILLISECONDS(50){ 
+    startIndex = startIndex + 1; /* motion speed */
   }
+    setSegments(count,startIndex);  // Determine which segments are ON or OFF
+
   EVERY_N_MILLISECONDS(1000){
-    if (colon){
-      col = colON;
-    } else {
-      col = CRGB::Black;
-    }
     colon = !colon;
   }
+  EVERY_N_MILLISECONDS(5000){
+    printLocalTime();
+  } 
   EVERY_N_MINUTES(5){
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   }
   FastLED.delay(1000/FRAMES_PER_SECOND); 
+
 }
 
-
-
 //---------------------------------------------------------------
-void setSegments(int count){
+void setSegments(int count, uint8_t colorIndex){
   // Based on the current count set number segments on or off
   uint8_t c1 = 0;  // Variable to store 1s digit
   uint8_t c10 = 0;  // Variable to store 10s digit
@@ -128,70 +213,76 @@ void setSegments(int count){
   c100 = (count / 100) % 10;
   c1000 = (count / 1000) % 10;
     
-  Serial.print("count = "); Serial.print(count);  // Print to serial monitor current count
-  Serial.print("\t  1000s: "); Serial.print(c1000);  // Print 1000s digit
-  Serial.print("  100s: "); Serial.print(c100);  // Print 100s digit
-  Serial.print("   10s: "); Serial.print(c10);  // Print 10s digit
-  Serial.print("   1s: "); Serial.println(c1);  // Print 1s digit
+//  Serial.print("count = "); Serial.print(count);  // Print to serial monitor current count
+//  Serial.print("\t  1000s: "); Serial.print(c1000);  // Print 1000s digit
+//  Serial.print("  100s: "); Serial.print(c100);  // Print 100s digit
+//  Serial.print("   10s: "); Serial.print(c10);  // Print 10s digit
+//  Serial.print("   1s: "); Serial.println(c1);  // Print 1s digit
 
-  // Operate on 1s digit segments first, shift them over,
-  // then 10's digit, and then do the 100s digit segments.
- for (uint8_t i=0; i < 4 ; i++) {
-    if (i == 0) {
-      c = c1;
-      segCOLOR = segON;
+     uint8_t brightness = 255;
+     
+     for( int i = 0; i < NUM_LEDS; i++) {
+        leds[i] = ColorFromPalette( currentPalette, colorIndex, brightness, currentBlending);
+        colorIndex += 3;
     }
-    if (i == 1) {
-      c = c10;
-      segCOLOR = segON10;
-    }
-    if (i == 2) {
-      c = c100;
-      segCOLOR = segON100;
-    }
-    if (i == 3) {
-      c = c1000;
-      segCOLOR = segON1000;
-    }
-//    Serial.print("i="); Serial.print(i); Serial.print(" c=");Serial.println(c);
-    segA = segB = segC = segD = segE = segF = segG = CRGB::Black;  // Initially set segments off
+    //next block of if statements sets segments to black to form digits
+    segCOLOR = segBlack; //unused segment color
+    if (c1000 == 0) { seg1G = segCOLOR; }
+    if (c1000 == 1) { seg1A = seg1D = seg1E = seg1F = seg1G = segCOLOR; } 
+    if (c1000 == 2) { seg1C = seg1F = segCOLOR; } 
+    if (c1000 == 3) { seg1E = seg1F = segCOLOR; } 
+    if (c1000 == 4) { seg1A = seg1D = seg1E = segCOLOR; } 
+    if (c1000 == 5) { seg1B = seg1E = segCOLOR; } 
+    if (c1000 == 6) { seg1B = segCOLOR; }
+    if (c1000 == 7) { seg1D = seg1E = seg1F = seg1G = segCOLOR; } 
+    if (c1000 == 8) {  }
+    if (c1000 == 9) { seg1D = seg1E = segCOLOR; } 
 
-    if (c == 0) { segA = segB = segC = segD = segE = segF = segCOLOR; }
-    if (c == 1) { segB = segC = segCOLOR; }
-    if (c == 2) { segA = segB = segD = segE = segG = segCOLOR; }
-    if (c == 3) { segA = segB = segC = segD = segG = segCOLOR; }
-    if (c == 4) { segB = segC = segF = segG = segCOLOR; }
-    if (c == 5) { segA = segC = segD = segF = segG = segCOLOR; }
-    if (c == 6) { segA = segC = segD = segE = segF = segG = segCOLOR; }
-    if (c == 7) { segA = segB = segC = segCOLOR; }
-    if (c == 8) { segA = segB = segC = segD = segE = segF = segG = segCOLOR; }
-    if (c == 9) { segA = segB = segC = segF = segG = segCOLOR; }
+    if (c100 == 0) { seg2G = segCOLOR; }
+    if (c100 == 1) { seg2A = seg2D = seg2E = seg2F = seg2G = segCOLOR; } 
+    if (c100 == 2) { seg2C = seg2F = segCOLOR; } 
+    if (c100 == 3) { seg2E = seg2F = segCOLOR; } 
+    if (c100 == 4) { seg2A = seg2D = seg2E = segCOLOR; } 
+    if (c100 == 5) { seg2B = seg2E = segCOLOR; } 
+    if (c100 == 6) { seg2B = segCOLOR; }
+    if (c100 == 7) { seg2D = seg2E = seg2F = seg2G = segCOLOR; } 
+    if (c100 == 8) {  }
+    if (c100 == 9) { seg2D = seg2E = segCOLOR; } 
 
-    if (i == 0) {  // Shift segments over to 1s digit display area
-      for (uint8_t p=0; p < (7*pps); p++) {
-        leds[p+(3*7*pps)] = leds[p];
-      }
+    if (c10 == 0) { seg3G = segCOLOR; }
+    if (c10 == 1) { seg3A = seg3D = seg3E = seg3F = seg3G = segCOLOR; } 
+    if (c10 == 2) { seg3C = seg3F = segCOLOR; } 
+    if (c10 == 3) { seg3E = seg3F = segCOLOR; } 
+    if (c10 == 4) { seg3A = seg3D = seg3E = segCOLOR; } 
+    if (c10 == 5) { seg3B = seg3E = segCOLOR; } 
+    if (c10 == 6) { seg3B = segCOLOR; }
+    if (c10 == 7) { seg3D = seg3E = seg3F = seg3G = segCOLOR; } 
+    if (c10 == 8) {  }
+    if (c10 == 9) { seg3D = seg3E = segCOLOR; } 
+
+    if (c1 == 0) { seg4G = segCOLOR; }
+    if (c1 == 1) { seg4A = seg4D = seg4E = seg4F = seg4G = segCOLOR; } 
+    if (c1 == 2) { seg4C = seg4F = segCOLOR; } 
+    if (c1 == 3) { seg4E = seg4F = segCOLOR; } 
+    if (c1 == 4) { seg4A = seg4D = seg4E = segCOLOR; } 
+    if (c1 == 5) { seg4B = seg4E = segCOLOR; } 
+    if (c1 == 6) { seg4B = segCOLOR; }
+    if (c1 == 7) { seg4D = seg4E = seg4F = seg4G = segCOLOR; } 
+    if (c1 == 8) {  }
+    if (c1 == 9) { seg4D = seg4E = segCOLOR; } 
+
+     if (colon){
+//      col = colON; //comment out to use palette color
+    } else {
+      col = CRGB::Black; //turns off colon to make it blink
     }
 
-    if (i == 1) {  // Shift segments over to 10s digit display area
-      for (uint8_t p=0; p < (7*pps); p++) {
-        leds[p+(2*7*pps)] = leds[p];
-      }
-    }
-
-    if (i == 2) {  // Shift segments over to 100s digit display area
-      for (uint8_t p=0; p < (7*pps); p++) {
-        leds[p+(1*7*pps)] = leds[p];
-      }
-    }
-
-  }
-  for (uint8_t p=0; p < NUM_LEDS;p++) {
-  Serial.print(leds[p]);
-  if((p+1) % (7*pps) == 0){
-    Serial.print(" ");
-  }
-}
-Serial.println();
+  
+//  for (uint8_t p=0; p < NUM_LEDS;p++) { //prints the status of all LEDs for troubleshooting
+//  Serial.print(leds[p]);
+//  if((p+1) % (7*pps) == 0){
+//    Serial.print(" ");
+//  }
+//}
+//Serial.println();
 }//end setSegments
-
