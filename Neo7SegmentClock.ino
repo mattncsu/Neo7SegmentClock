@@ -34,15 +34,8 @@ const int   daylightOffset_sec = 3600;
 #define FRAMES_PER_SECOND 100
 
 uint8_t pps = 3;  // number of Pixels Per Segment
-CHSV segON1000(HUE_GREEN,255,255);  // color of 1000s digit segments
-CHSV segON100(HUE_AQUA,255,255);  // color of 100s digit segments
-CHSV segON10(HUE_PURPLE,255,255);  // color of 10s digit segments
-CHSV segON(HUE_RED,255,255);  // color of 1s digit segments
-CHSV colON(HUE_YELLOW,255,255); //color of colon
 CHSV segBlack(0,0,0); //black
-//CRGB colON = CRGB::Orange;
 
-/* CRGB leds[NUM_LEDS];  <--not using this.  Using CRGBArray instead. */
 CRGBArray<NUM_LEDS> leds;
 
 // Name segments and define pixel ranges.
@@ -52,6 +45,7 @@ CRGBArray<NUM_LEDS> leds;
 //    GGG   
 //   E   C  
 //    DDD
+
 CRGBSet seg1A(  leds(pps*0,  pps-1+(pps*0)  ));
 CRGBSet seg1B(  leds(pps*1,  pps-1+(pps*1)  ));
 CRGBSet seg1C(  leds(pps*2,  pps-1+(pps*2)  ));
@@ -180,19 +174,19 @@ void loop()
   ArduinoOTA.handle();
 
   static uint8_t startIndex = 0;
-  EVERY_N_MILLISECONDS(50){ 
-    startIndex = startIndex + 1; /* motion speed */
+  EVERY_N_MILLISECONDS(50){ //motion speed: increase delay to slow down
+    startIndex = startIndex + 1;
   }
     setSegments(count,startIndex);  // Determine which segments are ON or OFF
 
   EVERY_N_MILLISECONDS(1000){
-    colon = !colon;
+    colon = !colon; //flash the colon
   }
   EVERY_N_MILLISECONDS(5000){
     printLocalTime();
   } 
   EVERY_N_MINUTES(5){
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); //get fresh NTP time
   }
   FastLED.delay(1000/FRAMES_PER_SECOND); 
 
@@ -233,7 +227,7 @@ void setSegments(int count, uint8_t colorIndex){
     if (c1000 == 3) { seg1E = seg1F = segCOLOR; } 
     if (c1000 == 4) { seg1A = seg1D = seg1E = segCOLOR; } 
     if (c1000 == 5) { seg1B = seg1E = segCOLOR; } 
-    if (c1000 == 6) { seg1B = segCOLOR; }
+    if (c1000 == 6) { seg1B = segCOLOR; } //B
     if (c1000 == 7) { seg1D = seg1E = seg1F = seg1G = segCOLOR; } 
     if (c1000 == 8) {  }
     if (c1000 == 9) { seg1D = seg1E = segCOLOR; } 
@@ -244,7 +238,7 @@ void setSegments(int count, uint8_t colorIndex){
     if (c100 == 3) { seg2E = seg2F = segCOLOR; } 
     if (c100 == 4) { seg2A = seg2D = seg2E = segCOLOR; } 
     if (c100 == 5) { seg2B = seg2E = segCOLOR; } 
-    if (c100 == 6) { seg2B = segCOLOR; }
+    if (c100 == 6) { seg2B = segCOLOR; } //B
     if (c100 == 7) { seg2D = seg2E = seg2F = seg2G = segCOLOR; } 
     if (c100 == 8) {  }
     if (c100 == 9) { seg2D = seg2E = segCOLOR; } 
@@ -255,7 +249,7 @@ void setSegments(int count, uint8_t colorIndex){
     if (c10 == 3) { seg3E = seg3F = segCOLOR; } 
     if (c10 == 4) { seg3A = seg3D = seg3E = segCOLOR; } 
     if (c10 == 5) { seg3B = seg3E = segCOLOR; } 
-    if (c10 == 6) { seg3B = segCOLOR; }
+    if (c10 == 6) { seg3B = segCOLOR; } //B
     if (c10 == 7) { seg3D = seg3E = seg3F = seg3G = segCOLOR; } 
     if (c10 == 8) {  }
     if (c10 == 9) { seg3D = seg3E = segCOLOR; } 
@@ -266,7 +260,7 @@ void setSegments(int count, uint8_t colorIndex){
     if (c1 == 3) { seg4E = seg4F = segCOLOR; } 
     if (c1 == 4) { seg4A = seg4D = seg4E = segCOLOR; } 
     if (c1 == 5) { seg4B = seg4E = segCOLOR; } 
-    if (c1 == 6) { seg4B = segCOLOR; }
+    if (c1 == 6) { seg4B = segCOLOR; } //B
     if (c1 == 7) { seg4D = seg4E = seg4F = seg4G = segCOLOR; } 
     if (c1 == 8) {  }
     if (c1 == 9) { seg4D = seg4E = segCOLOR; } 
